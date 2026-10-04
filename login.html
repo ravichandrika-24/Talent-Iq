@@ -1,0 +1,108 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Talent-IQ</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header>
+    <div class="logo">Talent-IQ</div>
+
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="register.html">Register</a>
+    </nav>
+</header>
+
+<main>
+
+<section class="hero">
+
+    <div class="hero-content">
+
+        <p class="tagline">WELCOME BACK</p>
+
+        <h1>
+            Login to
+            <span>Talent-IQ</span>
+        </h1>
+
+        <p class="description">
+            Sign in to continue your career journey.
+        </p>
+
+    </div>
+
+    <div class="hero-card">
+
+        <h2>Login</h2>
+
+        <form onsubmit="loginUser(event)">
+
+            <input
+                type="email"
+                id="email"
+                placeholder="Email Address"
+                required
+                style="width:100%;padding:14px;margin:10px 0;border:1px solid #ddd;border-radius:8px;"
+            >
+
+            <input
+                type="password"
+                id="password"
+                placeholder="Password"
+                required
+                style="width:100%;padding:14px;margin:10px 0;border:1px solid #ddd;border-radius:8px;"
+            >
+
+            <button
+                type="submit"
+                class="btn primary"
+                style="border:none;width:100%;margin-top:15px;cursor:pointer;"
+            >
+                Login
+            </button>
+
+        </form>
+
+        <p style="margin-top:20px;">
+            Don't have an account?
+            <a href="register.html">Register</a>
+        </p>
+
+        <p id="message" style="margin-top:15px;"></p>
+
+    </div>
+
+</section>
+
+</main>
+
+<footer>
+    <p>© 2026 Talent-IQ. Built by Ravi Chandrika.</p>
+</footer>
+
+<script>
+function loginUser(event) {
+
+    event.preventDefault();
+
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const message = document.getElementById("message");
+
+    if (email && password) {
+        message.textContent = "Login details submitted successfully.";
+        message.style.color = "green";
+    }
+}
+</script>
+
+</body>
+</html>
+```
