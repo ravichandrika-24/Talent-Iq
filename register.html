@@ -1,0 +1,143 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | Talent-IQ</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header>
+    <div class="logo">Talent-IQ</div>
+
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="login.html">Login</a>
+    </nav>
+</header>
+
+<main>
+
+<section class="hero">
+
+    <div class="hero-content">
+
+        <p class="tagline">JOIN TALENT-IQ</p>
+
+        <h1>
+            Build Your
+            <span>Future</span>
+        </h1>
+
+        <p class="description">
+            Create your Talent-IQ account and start building
+            your skills and career opportunities.
+        </p>
+
+    </div>
+
+    <div class="hero-card">
+
+        <h2>Create Account</h2>
+
+        <form onsubmit="registerUser(event)">
+
+            <input
+                type="text"
+                id="name"
+                placeholder="Full Name"
+                required
+                style="width:100%;padding:14px;margin:8px 0;border:1px solid #ddd;border-radius:8px;"
+            >
+
+            <input
+                type="email"
+                id="email"
+                placeholder="Email Address"
+                required
+                style="width:100%;padding:14px;margin:8px 0;border:1px solid #ddd;border-radius:8px;"
+            >
+
+            <input
+                type="password"
+                id="password"
+                placeholder="Password"
+                minlength="6"
+                required
+                style="width:100%;padding:14px;margin:8px 0;border:1px solid #ddd;border-radius:8px;"
+            >
+
+            <input
+                type="password"
+                id="confirmPassword"
+                placeholder="Confirm Password"
+                minlength="6"
+                required
+                style="width:100%;padding:14px;margin:8px 0;border:1px solid #ddd;border-radius:8px;"
+            >
+
+            <button
+                type="submit"
+                class="btn primary"
+                style="border:none;width:100%;margin-top:15px;cursor:pointer;"
+            >
+                Create Account
+            </button>
+
+        </form>
+
+        <p id="message" style="margin-top:15px;"></p>
+
+        <p style="margin-top:20px;">
+            Already have an account?
+            <a href="login.html">Login</a>
+        </p>
+
+    </div>
+
+</section>
+
+</main>
+
+<footer>
+    <p>© 2026 Talent-IQ. Built by Ravi Chandrika.</p>
+</footer>
+
+<script>
+
+function registerUser(event) {
+
+    event.preventDefault();
+
+    const name = document.getElementById("name").value;
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const confirmPassword =
+        document.getElementById("confirmPassword").value;
+
+    const message = document.getElementById("message");
+
+    if (password !== confirmPassword) {
+
+        message.textContent = "Passwords do not match.";
+        message.style.color = "red";
+
+        return;
+    }
+
+    message.textContent =
+        "Account created successfully!";
+
+    message.style.color = "green";
+
+    console.log("Registered user:", name, email);
+}
+
+</script>
+
+</body>
+</html>
+```
