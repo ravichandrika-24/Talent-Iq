@@ -12,11 +12,7 @@ from docx import Document
 
 
 app = Flask(__name__)
-
-app.secret_key = os.environ.get(
-    "SECRET_KEY",
-    "talentiq-production-secret"
-)
+app.secret_key = os.environ.get("SECRET_KEY", "talentiq-secret-key")
 
 DB = "talentiq.db"
 UPLOAD_DIR = "uploads"
@@ -26,32 +22,12 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 ALLOWED_EXTENSIONS = {"pdf", "docx"}
 
 SKILLS = [
-    "java",
-    "python",
-    "javascript",
-    "html",
-    "css",
-    "react",
-    "angular",
-    "spring",
-    "spring boot",
-    "django",
-    "flask",
-    "sql",
-    "mysql",
-    "postgresql",
-    "mongodb",
-    "git",
-    "github",
-    "docker",
-    "aws",
-    "machine learning",
-    "data analytics",
-    "data science",
-    "excel",
-    "power bi",
-    "c",
-    "c++"
+    "java", "python", "javascript", "html", "css",
+    "react", "angular", "spring", "spring boot",
+    "django", "flask", "sql", "mysql", "postgresql",
+    "mongodb", "git", "github", "docker", "aws",
+    "machine learning", "data analytics", "data science",
+    "excel", "power bi", "c", "c++", "dsa"
 ]
 
 
@@ -60,16 +36,15 @@ SKILLS = [
 # =========================
 
 def get_db():
-    connection = sqlite3.connect(DB)
-    connection.row_factory = sqlite3.Row
-    return connection
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 
 def init_db():
+    conn = get_db()
 
-    connection = get_db()
-
-    connection.execute("""
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -78,7 +53,7 @@ def init_db():
         )
     """)
 
-    connection.execute("""
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS profiles (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER UNIQUE,
@@ -90,7 +65,7 @@ def init_db():
         )
     """)
 
-    connection.execute("""
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS jobs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
@@ -100,7 +75,7 @@ def init_db():
         )
     """)
 
-    connection.execute("""
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS applications (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
@@ -110,76 +85,67 @@ def init_db():
         )
     """)
 
-    count = connection.execute(
+    count = conn.execute(
         "SELECT COUNT(*) FROM jobs"
     ).fetchone()[0]
 
     if count == 0:
-
         jobs = [
-
             (
                 "Java Full Stack Developer",
-                "Product Company",
+                "TalentIQ Technologies",
                 "java,spring boot,html,css,javascript,sql",
-                "Build modern full-stack applications."
+                "Build scalable full-stack applications."
             ),
-
             (
                 "Python Developer",
-                "Technology Company",
+                "TalentIQ Technologies",
                 "python,django,flask,sql,git",
                 "Develop Python backend applications."
             ),
-
             (
                 "Data Analyst",
-                "Analytics Company",
+                "TalentIQ Analytics",
                 "python,sql,excel,power bi,data analytics",
-                "Analyze data and create dashboards."
+                "Analyze business data and create dashboards."
             ),
-
             (
                 "Software Engineer",
-                "Technology Company",
+                "TalentIQ Labs",
                 "java,python,git,sql,docker",
-                "Develop scalable software products."
+                "Develop and maintain software products."
             )
         ]
 
-        connection.executemany("""
+        conn.executemany("""
             INSERT INTO jobs
             (title, company, skills, description)
             VALUES (?, ?, ?, ?)
         """, jobs)
 
-    connection.commit()
-    connection.close()
+    conn.commit()
+    conn.close()
 
 
 # =========================
-# LOGIN
+# AUTH
 # =========================
 
-def login_required(function):
-
-    @wraps(function)
+def login_required(func):
+    @wraps(func)
     def wrapper(*args, **kwargs):
-
         if "user_id" not in session:
             return redirect(url_for("login"))
-
-        return function(*args, **kwargs)
+        return func(*args, **kwargs)
 
     return wrapper
 
 
 # =========================
-# RESUME
+# RESUME FUNCTIONS
 # =========================
 
 def allowed_file(filename):
-
     return (
         "." in filename
         and filename.rsplit(".", 1)[1].lower()
@@ -216,59 +182,64 @@ def extract_resume_text(filepath):
 
 def analyze_resume(text):
 
-    lower_text = text.lower()
+    lower = text.lower()
 
     detected_skills = []
 
     for skill in SKILLS:
-
-        if skill.lower() in lower_text:
+        if skill in lower:
             detected_skills.append(skill)
 
-    email = re.search(
+    email_match = re.search(
         r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
         text
     )
 
-    phone = re.search(
+    phone_match = re.search(
         r"(?:\+91[\s-]?)?[6-9]\d{9}",
         text
     )
 
     education = any(
-        item in lower_text
-        for item in [
+        word in lower
+        for word in [
             "education",
             "b.tech",
             "btech",
             "bachelor",
             "degree",
-            "university"
+            "university",
+            "college"
         ]
     )
 
     experience = any(
-        item in lower_text
-        for item in [
+        word in lower
+        for word in [
             "experience",
             "internship",
             "intern",
-            "worked"
+            "worked",
+            "employment"
         ]
     )
 
-    projects = "project" in lower_text
-
-    skills_section = (
-        "skill" in lower_text
+    projects = any(
+        word in lower
+        for word in [
+            "project",
+            "projects"
+        ]
     )
+
+    skills_section = "skill" in lower
 
     score = 0
 
-    if email:
+    if email_match:
         score += 10
 
-    if phone:
+    if phone_match:
         score += 10
 
     if education:
@@ -283,18 +254,15 @@ def analyze_resume(text):
     if skills_section:
         score += 10
 
-    score += min(
-        len(detected_skills) * 3,
-        25
-    )
+    score += min(len(detected_skills) * 3, 25)
 
     score = min(score, 100)
 
     return {
         "score": score,
         "skills": detected_skills,
-        "email": email.group(0) if email else "Not detected",
-        "phone": phone.group(0) if phone else "Not detected",
+        "email": email_match.group(0) if email_match else "Not detected",
+        "phone": phone_match.group(0) if phone_match else "Not detected",
         "education": education,
         "experience": experience,
         "projects": projects,
@@ -306,18 +274,18 @@ def analyze_resume(text):
 # JOB MATCHING
 # =========================
 
-def match_score(candidate_skills, job_skills):
+def match_score(candidate_skills, required_skills):
 
     candidate = {
-        skill.strip().lower()
-        for skill in candidate_skills.split(",")
-        if skill.strip()
+        x.strip().lower()
+        for x in candidate_skills.split(",")
+        if x.strip()
     }
 
     required = {
-        skill.strip().lower()
-        for skill in job_skills.split(",")
-        if skill.strip()
+        x.strip().lower()
+        for x in required_skills.split(",")
+        if x.strip()
     }
 
     if not required:
@@ -331,13 +299,11 @@ def match_score(candidate_skills, job_skills):
 
 
 # =========================
-# DESIGN
+# HTML
 # =========================
 
-BASE_HTML = """
-
+HTML = """
 <!DOCTYPE html>
-
 <html>
 
 <head>
@@ -354,196 +320,79 @@ content="width=device-width, initial-scale=1">
 }
 
 body {
-
     margin: 0;
-
-    font-family:
-    Arial,
-    Helvetica,
-    sans-serif;
-
-    background:
-    #f5f7fb;
-
-    color:
-    #111827;
+    font-family: Arial, sans-serif;
+    background: #f5f7fb;
+    color: #111827;
 }
 
 nav {
-
-    background:
-    #111827;
-
-    padding:
-    18px;
-
+    background: #111827;
+    padding: 18px 30px;
 }
 
 nav a {
-
-    color:
-    white;
-
-    text-decoration:
-    none;
-
-    margin-right:
-    22px;
-
-    font-weight:
-    bold;
-
+    color: white;
+    text-decoration: none;
+    margin-right: 22px;
+    font-weight: bold;
 }
 
 .container {
-
-    max-width:
-    1100px;
-
-    margin:
-    35px auto;
-
-    padding:
-    20px;
-
+    max-width: 1100px;
+    margin: 35px auto;
+    padding: 20px;
 }
 
 .card {
-
-    background:
-    white;
-
-    border-radius:
-    16px;
-
-    padding:
-    25px;
-
-    margin-bottom:
-    20px;
-
-    box-shadow:
-    0 8px 25px
-    rgba(0,0,0,.08);
-
-}
-
-button {
-
-    background:
-    #635bff;
-
-    color:
-    white;
-
-    border:
-    none;
-
-    border-radius:
-    8px;
-
-    padding:
-    12px 20px;
-
-    cursor:
-    pointer;
-
-    font-weight:
-    bold;
-
-}
-
-button:hover {
-
-    opacity:
-    .9;
-
-}
-
-input,
-textarea {
-
-    width:
-    100%;
-
-    padding:
-    13px;
-
-    margin:
-    8px 0 16px;
-
-    border:
-    1px solid #ddd;
-
-    border-radius:
-    8px;
-
-}
-
-.score {
-
-    font-size:
-    45px;
-
-    font-weight:
-    bold;
-
-    color:
-    #635bff;
-
-}
-
-.skill {
-
-    display:
-    inline-block;
-
-    background:
-    #eef2ff;
-
-    padding:
-    8px 13px;
-
-    border-radius:
-    20px;
-
-    margin:
-    4px;
-
-}
-
-.match {
-
-    font-size:
-    25px;
-
-    font-weight:
-    bold;
-
-}
-
-.success {
-
-    color:
-    green;
-
-}
-
-.danger {
-
-    color:
-    red;
-
+    background: white;
+    padding: 25px;
+    margin-bottom: 20px;
+    border-radius: 16px;
+    box-shadow: 0 8px 25px rgba(0,0,0,.08);
 }
 
 .hero {
+    text-align: center;
+    padding: 70px 20px;
+}
 
-    text-align:
-    center;
+button {
+    background: #635bff;
+    color: white;
+    border: none;
+    padding: 12px 22px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+}
 
-    padding:
-    70px 20px;
+input {
+    width: 100%;
+    padding: 13px;
+    margin: 8px 0 18px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
 
+.score {
+    font-size: 48px;
+    font-weight: bold;
+    color: #635bff;
+}
+
+.skill {
+    display: inline-block;
+    background: #eef2ff;
+    padding: 8px 13px;
+    margin: 4px;
+    border-radius: 20px;
+}
+
+.match {
+    font-size: 25px;
+    font-weight: bold;
+    color: #635bff;
 }
 
 </style>
@@ -552,73 +401,46 @@ textarea {
 
 <body>
 
-
 <nav>
 
-<a href="/">
-TalentIQ
-</a>
+<a href="/">TalentIQ</a>
 
 {% if session.get("user_id") %}
 
-<a href="/dashboard">
-Dashboard
-</a>
-
-<a href="/profile">
-My Resume
-</a>
-
-<a href="/jobs">
-Jobs
-</a>
-
-<a href="/logout">
-Logout
-</a>
+<a href="/dashboard">Dashboard</a>
+<a href="/profile">My Resume</a>
+<a href="/jobs">Jobs</a>
+<a href="/logout">Logout</a>
 
 {% else %}
 
-<a href="/login">
-Login
-</a>
-
-<a href="/register">
-Register
-</a>
+<a href="/login">Login</a>
+<a href="/register">Register</a>
 
 {% endif %}
 
 </nav>
 
-
 <div class="container">
 
-{% with messages =
-get_flashed_messages() %}
+{% with messages = get_flashed_messages() %}
 
 {% for message in messages %}
 
 <div class="card">
-
 {{ message }}
-
 </div>
 
 {% endfor %}
 
 {% endwith %}
 
-
 {{ content|safe }}
-
 
 </div>
 
 </body>
-
 </html>
-
 """
 
 
@@ -633,38 +455,31 @@ def home():
 
     <div class="card hero">
 
-        <h1>
-        TalentIQ
-        </h1>
+    <h1>TalentIQ</h1>
 
-        <h2>
-        Intelligent Recruitment &
-        Candidate Analytics
-        </h2>
+    <h2>
+    Intelligent Recruitment &
+    Candidate Analytics
+    </h2>
 
-        <p>
-        Upload your resume.
-        Analyze your skills.
-        Get a resume score.
-        Find matching jobs.
-        </p>
+    <p>
+    Upload your resume, analyze your skills,
+    calculate your resume score and find
+    suitable jobs.
+    </p>
 
-        <br>
+    <br>
 
-        <a href="/register">
-
-            <button>
-            Get Started
-            </button>
-
-        </a>
+    <a href="/register">
+    <button>Get Started</button>
+    </a>
 
     </div>
 
     """
 
     return render_template_string(
-        BASE_HTML,
+        HTML,
         content=content
     )
 
@@ -673,75 +488,55 @@ def home():
 # REGISTER
 # =========================
 
-@app.route(
-    "/register",
-    methods=["GET", "POST"]
-)
+@app.route("/register", methods=["GET", "POST"])
 def register():
 
     if request.method == "POST":
 
         name = request.form["name"]
-
         email = request.form["email"]
-
         password = request.form["password"]
 
-        connection = get_db()
+        conn = get_db()
 
         try:
 
-            cursor = connection.execute(
-                """
+            cursor = conn.execute("""
                 INSERT INTO users
                 (name, email, password)
                 VALUES (?, ?, ?)
-                """,
-                (
-                    name,
-                    email,
-                    generate_password_hash(password)
-                )
-            )
+            """, (
+                name,
+                email,
+                generate_password_hash(password)
+            ))
 
             user_id = cursor.lastrowid
 
-            connection.execute(
-                """
+            conn.execute("""
                 INSERT INTO profiles
                 (user_id)
                 VALUES (?)
-                """,
-                (user_id,)
-            )
+            """, (user_id,))
 
-            connection.commit()
+            conn.commit()
 
-            flash(
-                "Account created successfully."
-            )
+            flash("Account created successfully.")
 
-            return redirect(
-                url_for("login")
-            )
+            return redirect(url_for("login"))
 
         except sqlite3.IntegrityError:
 
-            flash(
-                "Email already registered."
-            )
+            flash("Email already registered.")
 
         finally:
-
-            connection.close()
+            conn.close()
 
     content = """
 
     <div class="card">
 
-    <h2>
-    Create TalentIQ Account
-    </h2>
+    <h2>Create Account</h2>
 
     <form method="POST">
 
@@ -762,9 +557,7 @@ def register():
     placeholder="Password"
     required>
 
-    <button>
-    Register
-    </button>
+    <button>Register</button>
 
     </form>
 
@@ -773,7 +566,7 @@ def register():
     """
 
     return render_template_string(
-        BASE_HTML,
+        HTML,
         content=content
     )
 
@@ -782,30 +575,23 @@ def register():
 # LOGIN
 # =========================
 
-@app.route(
-    "/login",
-    methods=["GET", "POST"]
-)
+@app.route("/login", methods=["GET", "POST"])
 def login():
 
     if request.method == "POST":
 
         email = request.form["email"]
-
         password = request.form["password"]
 
-        connection = get_db()
+        conn = get_db()
 
-        user = connection.execute(
-            """
+        user = conn.execute("""
             SELECT *
             FROM users
             WHERE email=?
-            """,
-            (email,)
-        ).fetchone()
+        """, (email,)).fetchone()
 
-        connection.close()
+        conn.close()
 
         if user and check_password_hash(
             user["password"],
@@ -813,24 +599,19 @@ def login():
         ):
 
             session["user_id"] = user["id"]
-
             session["name"] = user["name"]
 
             return redirect(
                 url_for("dashboard")
             )
 
-        flash(
-            "Invalid email or password."
-        )
+        flash("Invalid email or password.")
 
     content = """
 
     <div class="card">
 
-    <h2>
-    Login
-    </h2>
+    <h2>Login</h2>
 
     <form method="POST">
 
@@ -846,9 +627,7 @@ def login():
     placeholder="Password"
     required>
 
-    <button>
-    Login
-    </button>
+    <button>Login</button>
 
     </form>
 
@@ -857,7 +636,7 @@ def login():
     """
 
     return render_template_string(
-        BASE_HTML,
+        HTML,
         content=content
     )
 
@@ -871,50 +650,39 @@ def logout():
 
     session.clear()
 
-    return redirect(
-        url_for("home")
-    )
+    return redirect(url_for("home"))
 
 
 # =========================
 # PROFILE / RESUME
 # =========================
 
-@app.route(
-    "/profile",
-    methods=["GET", "POST"]
-)
+@app.route("/profile", methods=["GET", "POST"])
 @login_required
 def profile():
 
-    connection = get_db()
+    conn = get_db()
 
-    profile = connection.execute(
-        """
+    profile = conn.execute("""
         SELECT *
         FROM profiles
         WHERE user_id=?
-        """,
-        (session["user_id"],)
-    ).fetchone()
+    """, (session["user_id"],)).fetchone()
 
     analysis = None
 
     if request.method == "POST":
 
         phone = request.form.get(
-            "phone",
-            ""
+            "phone", ""
         )
 
         education = request.form.get(
-            "education",
-            ""
+            "education", ""
         )
 
         skills = request.form.get(
-            "skills",
-            ""
+            "skills", ""
         )
 
         resume = request.files.get(
@@ -922,7 +690,6 @@ def profile():
         )
 
         resume_name = profile["resume"]
-
         resume_score = profile["resume_score"] or 0
 
         if resume and resume.filename:
@@ -932,10 +699,10 @@ def profile():
             ):
 
                 flash(
-                    "Please upload only PDF or DOCX."
+                    "Only PDF and DOCX files are allowed."
                 )
 
-                connection.close()
+                conn.close()
 
                 return redirect(
                     url_for("profile")
@@ -960,38 +727,27 @@ def profile():
 
             try:
 
-                resume_text = (
-                    extract_resume_text(
-                        filepath
-                    )
+                text = extract_resume_text(
+                    filepath
                 )
 
-                if not resume_text.strip():
+                if not text.strip():
 
                     flash(
-                        "Resume has no readable text."
+                        "This resume has no readable text."
                     )
 
                 else:
 
-                    analysis = analyze_resume(
-                        resume_text
-                    )
+                    analysis = analyze_resume(text)
 
-                    detected_skills = (
-                        analysis["skills"]
-                    )
-
-                    if detected_skills:
+                    if analysis["skills"]:
 
                         skills = ",".join(
-                            detected_skills
+                            analysis["skills"]
                         )
 
-                    resume_score = (
-                        analysis["score"]
-                    )
-
+                    resume_score = analysis["score"]
                     resume_name = filename
 
                     session[
@@ -1003,14 +759,15 @@ def profile():
                         f"Score: {resume_score}%"
                     )
 
-            except Exception:
+            except Exception as error:
+
+                print(error)
 
                 flash(
-                    "Could not analyze this resume."
+                    "Resume analysis failed."
                 )
 
-        connection.execute(
-            """
+        conn.execute("""
             UPDATE profiles
 
             SET
@@ -1021,29 +778,24 @@ def profile():
             resume_score=?
 
             WHERE user_id=?
-            """,
-            (
-                phone,
-                education,
-                skills,
-                resume_name,
-                resume_score,
-                session["user_id"]
-            )
-        )
+        """, (
+            phone,
+            education,
+            skills,
+            resume_name,
+            resume_score,
+            session["user_id"]
+        ))
 
-        connection.commit()
+        conn.commit()
 
-    profile = connection.execute(
-        """
+    profile = conn.execute("""
         SELECT *
         FROM profiles
         WHERE user_id=?
-        """,
-        (session["user_id"],)
-    ).fetchone()
+    """, (session["user_id"],)).fetchone()
 
-    connection.close()
+    conn.close()
 
     analysis = session.get(
         "resume_analysis"
@@ -1067,70 +819,48 @@ def profile():
 
         <div class="card">
 
-        <h2>
-        Resume Analysis
-        </h2>
+        <h2>Resume Analysis</h2>
 
         <div class="score">
-
         {analysis["score"]}%
-
         </div>
 
-        <p>
-        Resume Score
-        </p>
+        <p>Resume Score</p>
 
-        <h3>
-        Detected Skills
-        </h3>
+        <h3>Detected Skills</h3>
 
         {skill_html or "No skills detected"}
 
-        <h3>
-        Contact Information
-        </h3>
+        <h3>Contact Information</h3>
 
         <p>
-        Email:
-        {analysis["email"]}
+        Email: {analysis["email"]}
         </p>
 
         <p>
-        Phone:
-        {analysis["phone"]}
+        Phone: {analysis["phone"]}
         </p>
 
-        <h3>
-        Resume Sections
-        </h3>
+        <h3>Resume Quality</h3>
 
         <p>
         Education:
-        {"✅ Found"
-        if analysis["education"]
-        else "❌ Missing"}
+        {"✅ Found" if analysis["education"] else "❌ Missing"}
         </p>
 
         <p>
         Experience:
-        {"✅ Found"
-        if analysis["experience"]
-        else "❌ Missing"}
+        {"✅ Found" if analysis["experience"] else "❌ Missing"}
         </p>
 
         <p>
         Projects:
-        {"✅ Found"
-        if analysis["projects"]
-        else "❌ Missing"}
+        {"✅ Found" if analysis["projects"] else "❌ Missing"}
         </p>
 
         <p>
         Skills:
-        {"✅ Found"
-        if analysis["skills_section"]
-        else "❌ Missing"}
+        {"✅ Found" if analysis["skills_section"] else "❌ Missing"}
         </p>
 
         </div>
@@ -1141,42 +871,32 @@ def profile():
 
     <div class="card">
 
-    <h2>
-    My Resume
-    </h2>
+    <h2>Upload Your Resume</h2>
 
     <form
     method="POST"
     enctype="multipart/form-data">
 
-    <label>
-    Phone
-    </label>
+    <label>Phone</label>
 
     <input
     name="phone"
     value="{profile["phone"] or ""}">
 
-    <label>
-    Education
-    </label>
+    <label>Education</label>
 
     <input
     name="education"
     value="{profile["education"] or ""}">
 
-    <label>
-    Skills
-    </label>
+    <label>Skills</label>
 
     <input
     name="skills"
     value="{profile["skills"] or ""}"
     placeholder="Java, Python, SQL">
 
-    <label>
-    Resume
-    </label>
+    <label>Resume PDF/DOCX</label>
 
     <input
     type="file"
@@ -1185,7 +905,7 @@ def profile():
     required>
 
     <button>
-    Upload & Analyze
+    Upload & Analyze Resume
     </button>
 
     </form>
@@ -1197,7 +917,7 @@ def profile():
     """
 
     return render_template_string(
-        BASE_HTML,
+        HTML,
         content=content
     )
 
@@ -1210,50 +930,41 @@ def profile():
 @login_required
 def jobs():
 
-    connection = get_db()
+    conn = get_db()
 
-    jobs_list = connection.execute(
+    jobs = conn.execute(
         "SELECT * FROM jobs"
     ).fetchall()
 
-    profile = connection.execute(
-        """
+    profile = conn.execute("""
         SELECT *
         FROM profiles
         WHERE user_id=?
-        """,
-        (session["user_id"],)
-    ).fetchone()
+    """, (session["user_id"],)).fetchone()
 
-    connection.close()
+    conn.close()
 
-    cards = ""
+    result = ""
 
-    for job in jobs_list:
+    for job in jobs:
 
         score = match_score(
             profile["skills"] or "",
             job["skills"]
         )
 
-        cards += f"""
+        result += f"""
 
         <div class="card">
 
-        <h2>
-        {job["title"]}
-        </h2>
+        <h2>{job["title"]}</h2>
 
-        <h3>
-        {job["company"]}
-        </h3>
+        <h3>{job["company"]}</h3>
+
+        <p>{job["description"]}</p>
 
         <p>
-        {job["description"]}
-        </p>
-
-        <p>
-        Required:
+        Required Skills:
         {job["skills"]}
         </p>
 
@@ -1264,11 +975,7 @@ def jobs():
         <br>
 
         <a href="/apply/{job["id"]}">
-
-        <button>
-        Apply Now
-        </button>
-
+        <button>Apply Now</button>
         </a>
 
         </div>
@@ -1277,16 +984,14 @@ def jobs():
 
     content = f"""
 
-    <h1>
-    Recommended Jobs
-    </h1>
+    <h1>Recommended Jobs</h1>
 
-    {cards}
+    {result}
 
     """
 
     return render_template_string(
-        BASE_HTML,
+        HTML,
         content=content
     )
 
@@ -1299,29 +1004,23 @@ def jobs():
 @login_required
 def apply(job_id):
 
-    connection = get_db()
+    conn = get_db()
 
-    job = connection.execute(
-        """
+    job = conn.execute("""
         SELECT *
         FROM jobs
         WHERE id=?
-        """,
-        (job_id,)
-    ).fetchone()
+    """, (job_id,)).fetchone()
 
-    profile = connection.execute(
-        """
+    profile = conn.execute("""
         SELECT *
         FROM profiles
         WHERE user_id=?
-        """,
-        (session["user_id"],)
-    ).fetchone()
+    """, (session["user_id"],)).fetchone()
 
     if not job:
 
-        connection.close()
+        conn.close()
 
         return "Job not found", 404
 
@@ -1330,35 +1029,29 @@ def apply(job_id):
         job["skills"]
     )
 
-    existing = connection.execute(
-        """
+    existing = conn.execute("""
         SELECT *
         FROM applications
         WHERE user_id=?
         AND job_id=?
-        """,
-        (
-            session["user_id"],
-            job_id
-        )
-    ).fetchone()
+    """, (
+        session["user_id"],
+        job_id
+    )).fetchone()
 
     if not existing:
 
-        connection.execute(
-            """
+        conn.execute("""
             INSERT INTO applications
             (user_id, job_id, score)
             VALUES (?, ?, ?)
-            """,
-            (
-                session["user_id"],
-                job_id,
-                score
-            )
-        )
+        """, (
+            session["user_id"],
+            job_id,
+            score
+        ))
 
-        connection.commit()
+        conn.commit()
 
         flash(
             f"Application submitted! "
@@ -1371,7 +1064,7 @@ def apply(job_id):
             "You already applied for this job."
         )
 
-    connection.close()
+    conn.close()
 
     return redirect(
         url_for("jobs")
@@ -1386,23 +1079,19 @@ def apply(job_id):
 @login_required
 def dashboard():
 
-    connection = get_db()
+    conn = get_db()
 
-    profile = connection.execute(
-        """
+    profile = conn.execute("""
         SELECT *
         FROM profiles
         WHERE user_id=?
-        """,
-        (session["user_id"],)
-    ).fetchone()
+    """, (session["user_id"],)).fetchone()
 
-    applications = connection.execute(
-        """
+    applications = conn.execute("""
         SELECT
-        applications.*,
-        jobs.title,
-        jobs.company
+            applications.*,
+            jobs.title,
+            jobs.company
 
         FROM applications
 
@@ -1412,17 +1101,15 @@ def dashboard():
         WHERE applications.user_id=?
 
         ORDER BY applications.id DESC
-        """,
-        (session["user_id"],)
-    ).fetchall()
+    """, (session["user_id"],)).fetchall()
 
-    connection.close()
+    conn.close()
 
-    applications_html = ""
+    application_html = ""
 
     for application in applications:
 
-        applications_html += f"""
+        application_html += f"""
 
         <div class="card">
 
@@ -1435,10 +1122,8 @@ def dashboard():
         </p>
 
         <p>
-        Match:
-        <b>
-        {application["score"]}%
-        </b>
+        Match Score:
+        <b>{application["score"]}%</b>
         </p>
 
         <p>
@@ -1455,8 +1140,7 @@ def dashboard():
     <div class="card">
 
     <h1>
-    Welcome,
-    {session["name"]}
+    Welcome, {session["name"]}
     </h1>
 
     <h2>
@@ -1471,45 +1155,36 @@ def dashboard():
 
     </div>
 
-
     <h2>
     My Applications
     </h2>
 
-    {applications_html or
+    {application_html or
     '<div class="card">No applications yet.</div>'}
 
     """
 
     return render_template_string(
-        BASE_HTML,
+        HTML,
         content=content
     )
 
 
 # =========================
-# HEALTH CHECK
+# HEALTH
 # =========================
 
 @app.route("/health")
 def health():
 
     return {
-
         "status": "ok",
-
         "service": "TalentIQ",
-
         "resume_upload": True,
-
         "resume_analysis": True,
-
         "pdf_support": True,
-
         "docx_support": True,
-
         "job_matching": True
-
     }
 
 
@@ -1519,14 +1194,10 @@ def health():
 
 init_db()
 
-
 if __name__ == "__main__":
 
     port = int(
-        os.environ.get(
-            "PORT",
-            5000
-        )
+        os.environ.get("PORT", 5000)
     )
 
     app.run(
